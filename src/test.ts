@@ -9,6 +9,23 @@ const log = (message: string) => {
   then = now;
 };
 
+const executeQuery = async (engine: Engine, queryStr: string) => {
+  log(`Executing query: ${queryStr}`);
+
+  const query = await engine.query(queryStr, { unionDefaultGraph: true });
+
+  if (query.resultType !== 'bindings') {
+    throw new Error(`Unexpected result type: ${query.resultType}`);
+  }
+
+  const bindingsStream = await query.execute();
+  const bindings = await (bindingsStream as any).toArray();
+
+  log(`Query executed, found ${bindings.length} bindings`);
+
+  return bindings;
+};
+
 const main = async () => {
 
   log('Welcome!');
@@ -44,20 +61,16 @@ const main = async () => {
 
   log('Added 200k quads to the store');
 
-  const queryStr = 'SELECT * WHERE { ?s ?p ?o . } LIMIT 100';
-  const query = await engine.query(queryStr, { unionDefaultGraph: true });
+  const results1 = await executeQuery(engine, 'SELECT * WHERE { GRAPH ?g { ?s ?p ?o . } } LIMIT 100');
 
-  if (query.resultType !== 'bindings') {
-    throw new Error('Unexpected result type');
+  if (results1.length !== 100) {
+    throw new Error(`Expected 100 bindings, got ${results1.length}`);
   }
 
-  const bindingsStream = await query.execute();
-  const bindings = await (bindingsStream as any).toArray();
+  const results2 = await executeQuery(engine, 'SELECT * WHERE { ?s ?p ?o . } LIMIT 100');
 
-  log(`Evaluated query "${queryStr}", ${bindings.length} matching quads found`);
-
-  if (bindings.length !== 100) {
-    throw new Error(`Expected 100 bindings, got ${bindings.length}`);
+  if (results2.length !== 100) {
+    throw new Error(`Expected 100 bindings, got ${results2.length}`);
   }
 
   // await store.close();
