@@ -3,14 +3,14 @@ import { DataFactory, RdfStore, Engine } from './bundle.js';
 
 let then = Date.now();
 
-const log = (message: string) => { 
+const log = (message: string) => {
   const now = Date.now();
   console.log('%s %s +%sms', new Date().toISOString(), message, now - then);
   then = now;
 };
 
-const main = async () => { 
-  
+const main = async () => {
+
   log('Welcome!');
 
   const dataFactory = new DataFactory();
@@ -39,17 +39,26 @@ const main = async () => {
     dataFactory.namedNode(`ex://o${i}`),
     dataFactory.namedNode(`ex://g${i % 1000}`),
   ));
+
   source_quads.forEach(q => store.addQuad(q));
+
   log('Added 200k quads to the store');
 
-  const queryStr = 'SELECT DISTINCT ?g WHERE { GRAPH ?g { ?s ?p ?o . } }';
-  const query = await engine.query(queryStr);
+  const queryStr = 'SELECT * WHERE { ?s ?p ?o . } LIMIT 100';
+  const query = await engine.query(queryStr, { unionDefaultGraph: true });
+
   if (query.resultType !== 'bindings') {
     throw new Error('Unexpected result type');
   }
+
   const bindingsStream = await query.execute();
-  const quads = await (bindingsStream as any).toArray();
-  log(`Evaluated query "${queryStr}", ${quads.length} matching quads found`);
+  const bindings = await (bindingsStream as any).toArray();
+
+  log(`Evaluated query "${queryStr}", ${bindings.length} matching quads found`);
+
+  if (bindings.length !== 100) {
+    throw new Error(`Expected 100 bindings, got ${bindings.length}`);
+  }
 
   // await store.close();
   // log('Store closed');
